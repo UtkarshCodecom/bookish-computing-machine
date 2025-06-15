@@ -15,7 +15,7 @@ const useDrawing = (stageRef) => {
   const [brushColor, setBrushColor] = useState("#2563eb");
   const [brushSize, setBrushSize] = useState(3);
   const [brushType, setBrushType] = useState("pen");
-  const [eraseType, setEraseType] = useState(ERASE_TYPES.PARTIAL);
+  const [eraseType, setEraseType] = useState("partial");
   const [eraseSize, setEraseSize] = useState(20);
   const [history, setHistory] = useState([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
@@ -46,11 +46,10 @@ const useDrawing = (stageRef) => {
     };
   }, [brushColor, brushSize, brushType]);
 
-  // Enhanced erasing functions
   const eraseAtPoint = useCallback((point) => {
-    if (eraseType === ERASE_TYPES.WHOLE) {
+    if (eraseType === "whole") {
       const updatedLines = lines.filter(
-        (line) => !isPointNearLine(point, line.points, eraseSize, eraseType)
+        (line) => !isPointNearLine(point, line.points, eraseSize)
       );
       if (updatedLines.length !== lines.length) {
         setLines(updatedLines);
@@ -83,8 +82,7 @@ const useDrawing = (stageRef) => {
     return false;
   }, [lines, eraseType, eraseSize]);
 
-  const isPointNearLine = (point, linePoints, threshold, currentEraseType) => {
-    const effectiveThreshold = currentEraseType === ERASE_TYPES.WHOLE ? threshold : 5;
+  const isPointNearLine = (point, linePoints, threshold) => {
     for (let i = 0; i < linePoints.length - 2; i += 2) {
       const x1 = linePoints[i];
       const y1 = linePoints[i + 1];
@@ -96,19 +94,20 @@ const useDrawing = (stageRef) => {
         { x: x1, y: y1 },
         { x: x2, y: y2 }
       );
-      if (distance < effectiveThreshold) return true;
+      if (distance < threshold) return true;
     }
     return false;
   };
-  const handlePointerDown = useCallback((e) => {
+
+  const handlePointerDown = useCallback((e, mode) => {
     if (!stageRef.current) return;
 
     const stage = stageRef.current;
     const point = getRelativePointerPosition(stage);
 
-    if (mode === MODES.PAN || mode === MODES.TEXT) return;
+    if (mode === "pan" || mode === "text") return;
 
-    if (isStylusEraser(e) || mode === MODES.ERASE) {
+    if (isStylusEraser(e) || mode === "erase") {
       e.evt.preventDefault();
       setIsDrawing(true);
       const erased = eraseAtPoint(point);
@@ -116,7 +115,7 @@ const useDrawing = (stageRef) => {
       return;
     }
 
-    if (mode !== MODES.DRAW) return;
+    if (mode !== "draw") return;
 
     if (!isPenInput(e) && e.evt.pointerType !== "touch" && e.evt.pointerType !== "mouse")
       return;
@@ -133,19 +132,20 @@ const useDrawing = (stageRef) => {
       type: brushType,
     });
   }, [getBrushStyle, brushType, eraseAtPoint, saveToHistory]);
-  const handlePointerMove = useCallback((e) => {
-    if (!isDrawing || !stageRef.current || mode === MODES.PAN || mode === MODES.TEXT) return;
+
+  const handlePointerMove = useCallback((e, mode) => {
+    if (!isDrawing || !stageRef.current) return;
 
     const stage = stageRef.current;
     const point = getRelativePointerPosition(stage);
     
-    if (mode === MODES.ERASE || isStylusEraser(e)) {
+    if (mode === "erase" || isStylusEraser(e)) {
       const erased = eraseAtPoint(point);
       if (erased) saveToHistory();
       return;
     }
 
-    if (!currentLine || mode !== MODES.DRAW) return;
+    if (!currentLine || mode !== "draw") return;
 
     setCurrentLine((prevLine) => ({
       ...prevLine,
@@ -154,7 +154,7 @@ const useDrawing = (stageRef) => {
   }, [isDrawing, currentLine, eraseAtPoint, saveToHistory]);
 
   const handlePointerUp = useCallback((e, mode) => {
-    if (currentLine && !isStylusEraser(e) && mode === MODES.DRAW) {
+    if (currentLine && !isStylusEraser(e) && mode === "draw") {
       setLines((prev) => [...prev, currentLine]);
       saveToHistory();
     }
@@ -172,6 +172,7 @@ const useDrawing = (stageRef) => {
 
   return {
     lines,
+    setLines,
     currentLine,
     isDrawing,
     brushColor,

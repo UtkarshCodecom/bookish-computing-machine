@@ -1,6 +1,7 @@
 const Note = require('../models/note');
 
-exports.createNote = async (req, res) => {    try {
+exports.createNote = async (req, res) => {
+    try {
         const { title, content } = req.body;
         
         // Validate content structure
@@ -18,10 +19,12 @@ exports.createNote = async (req, res) => {    try {
         }));
 
         const note = new Note({
-            title,
+            title: title || 'Untitled Note',
             content: {
-                ...content,
-                lines: formattedLines
+                lines: formattedLines,
+                textElements: content.textElements || [],
+                stageState: content.stageState || { position: { x: 0, y: 0 }, scale: 1 },
+                backgroundImage: content.backgroundImage || null
             },
             user: req.user._id
         });
@@ -81,7 +84,7 @@ exports.updateNote = async (req, res) => {
 
         // Ensure proper structure for MongoDB
         const noteData = {
-            title: updates.title,
+            title: updates.title || 'Untitled Note',
             content: {
                 lines: formattedLines,
                 textElements: updates.content?.textElements || [],
@@ -94,7 +97,7 @@ exports.updateNote = async (req, res) => {
         const note = await Note.findOneAndUpdate(
             { _id: req.params.id, user: req.user._id },
             { $set: noteData },
-            { new: true }
+            { new: true, runValidators: true }
         );
         
         if (!note) {
@@ -119,7 +122,7 @@ exports.deleteNote = async (req, res) => {
             return res.status(404).json({ error: 'Note not found' });
         }
         
-        res.json({ message: 'Note deleted' });
+        res.json({ message: 'Note deleted successfully' });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }

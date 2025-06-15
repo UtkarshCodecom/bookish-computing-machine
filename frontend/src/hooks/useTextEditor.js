@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { getScreenPosition, getRelativePointerPosition } from '../utils/canvasUtils';
 import { MODES } from '../utils/constants';
 
@@ -11,7 +11,10 @@ const useTextEditor = (stageRef) => {
   const [textInputValue, setTextInputValue] = useState("");
   const [textInputPosition, setTextInputPosition] = useState({ x: 0, y: 0 });
   const [isDraggingText, setIsDraggingText] = useState(false);
-  const textInputRef = useRef();  const [textSettings, setTextSettings] = useState({
+  const textInputRef = useRef();
+  const transformerRef = useRef();
+
+  const [textSettings, setTextSettings] = useState({
     fontSize: 24,
     fontFamily: "Arial",
     color: "#000000",
@@ -21,6 +24,21 @@ const useTextEditor = (stageRef) => {
     highlightColor: "#FFD700",
     width: 300,
   });
+
+  // Handle transformer attachment
+  useEffect(() => {
+    if (selectedTextId && transformerRef.current && stageRef.current) {
+      const selectedNode = stageRef.current.findOne(`#text-${selectedTextId}`);
+      if (selectedNode) {
+        transformerRef.current.nodes([selectedNode]);
+        transformerRef.current.getLayer().batchDraw();
+      }
+    } else if (transformerRef.current) {
+      transformerRef.current.nodes([]);
+      transformerRef.current.getLayer().batchDraw();
+    }
+  }, [selectedTextId, stageRef]);
+
   const handleStageClick = useCallback((e, mode) => {
     if (!stageRef.current) return;
 
@@ -36,7 +54,7 @@ const useTextEditor = (stageRef) => {
     if (!clickedOnTransformer) {
       setSelectedTextId(null);
       if (
-        mode === MODES.TEXT &&
+        mode === "text" &&
         !isEditingText &&
         (e.target === stageRef.current || e.target.getClassName() === "Line")
       ) {
@@ -47,13 +65,21 @@ const useTextEditor = (stageRef) => {
           x: pos.x,
           y: pos.y,
           text: "",
-          ...textSettings
+          fontSize: textSettings.fontSize,
+          fontFamily: textSettings.fontFamily,
+          fill: textSettings.color,
+          fontWeight: textSettings.bold ? "bold" : "normal",
+          fontStyle: textSettings.italic ? "italic" : "normal",
+          width: textSettings.width,
+          highlight: textSettings.highlight,
+          highlightColor: textSettings.highlightColor,
         };
         setTextElements(prev => [...prev, newTextEl]);
         setTextInputPosition(screenPos);
         setTextInputValue("");
         setIsEditingText(true);
         setEditingTextId(newTextEl.id);
+        setSelectedTextId(newTextEl.id);
         setTimeout(() => {
           if (textInputRef.current) {
             textInputRef.current.focus();
@@ -104,6 +130,10 @@ const useTextEditor = (stageRef) => {
       setIsAddingText(false);
     }, 0);
   }, [isEditingText, editingTextId, textInputValue]);
+
+  const handleTextClick = useCallback((textEl) => {
+    setSelectedTextId(textEl.id);
+  }, []);
 
   const handleTextDblClick = useCallback((textEl) => {
     startTextEditing(textEl);
@@ -158,21 +188,24 @@ const useTextEditor = (stageRef) => {
 
   return {
     textElements,
+    setTextElements,
     selectedTextId,
     isEditingText,
     editingTextId,
     textInputValue,
+    setTextInputValue,
     textInputPosition,
     isDraggingText,
     textSettings,
     textInputRef,
+    transformerRef,
     handleStageClick,
+    handleTextClick,
     handleTextDblClick,
     handleTextDragStart,
     handleTextDragEnd,
     updateSelectedTextStyle,
     deleteSelectedText,
-    setTextInputValue,
     finishTextEditing,
     clearText
   };
